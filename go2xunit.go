@@ -8,8 +8,10 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 const (
@@ -33,6 +35,9 @@ const (
 	gt_noFiles = "^\\?.*\\[no test files\\]$"
 	// FAIL    node/config [build failed]
 	gt_buildFailed = `^FAIL.*\[(build|setup) failed\]$`
+
+	// BenchmarkParsePage        100      17788153 ns/op
+	gt_benchRE = "^(Benchmark.+?)\\s+(\\d+?)\\s+(\\d+?) ns/op"
 
 	// gocheck regular expressions
 
@@ -105,6 +110,7 @@ func gt_Parse(rd io.Reader) ([]*Suite, error) {
 	find_start := regexp.MustCompile(gt_startRE).FindStringSubmatch
 	find_end := regexp.MustCompile(gt_endRE).FindStringSubmatch
 	find_suite := regexp.MustCompile(gt_suiteRE).FindStringSubmatch
+	find_bench := regexp.MustCompile(gt_benchRE).FindStringSubmatch
 	is_nofiles := regexp.MustCompile(gt_noFiles).MatchString
 	is_buildFailed := regexp.MustCompile(gt_buildFailed).MatchString
 	is_exit := regexp.MustCompile("^exit status -?\\d+").MatchString
@@ -184,6 +190,16 @@ func gt_Parse(rd io.Reader) ([]*Suite, error) {
 			curSuite.Tests = append(curSuite.Tests, curTest)
 			curTest = nil
 			out = []string{}
+			continue
+		}
+
+		if tokens = find_bench(line); tokens != nil {
+			duration, _ := time.ParseDuration(tokens[3] + "ns")
+			benchmark := &Test{
+				Name: tokens[1],
+				Time: strconv.FormatFloat(duration.Seconds(), 'f', 9, 64),
+			}
+			curSuite.Tests = append(curSuite.Tests, benchmark)
 			continue
 		}
 

@@ -407,3 +407,40 @@ func Test_0Time(t *testing.T) {
 		t.Fatalf("unexpected failure")
 	}
 }
+
+func Test_parseBenchMarks(t *testing.T) {
+	timings := map[string]string{
+		"BenchmarkParsePage":      "0.017946519",
+		"BenchmarkLongFormRender": "0.000037764",
+		"BenchmarkChain":          "0.000007925",
+	}
+	benchmarksObserved := 0
+	testsObserved := 0
+
+	suites, err := loadGotest("data/bench.out", t)
+	if err != nil {
+		t.Fatalf("Couldn't load sample benchmark data")
+	}
+
+	for _, suite := range suites {
+		for _, test := range suite.Tests {
+			testsObserved++
+			if timing, found := timings[test.Name]; found {
+				benchmarksObserved++
+				if test.Time != timing {
+					t.Fatalf("Parsed incorrect benchmark timing for [%v]. Expecting [%v] but got [%v]", test.Name, timing, test.Time)
+				}
+			}
+		}
+	}
+
+	totalTests := 86
+	if testsObserved != totalTests {
+		t.Fatalf("Wrong number of tests parsed in bench.out. Exepecting %v but was %v", totalTests, testsObserved)
+	}
+
+	if benchmarksObserved != len(timings) {
+		t.Fatalf("Wrong number of benchmarks parsed in bench.out. Exepecting %v but was %v", len(timings), benchmarksObserved)
+	}
+
+}
